@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Traffic Center — ระบบตรวจจับความเสี่ยงจราจร</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0c0c14;
+            --bg-secondary: #12121c;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f1f1f4;
+            --text-secondary: #8b8b96;
+            --accent-blue: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-orange: #f97316;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 400px;
+            background: linear-gradient(180deg, 
+                rgba(59, 130, 246, 0.12) 0%, 
+                rgba(139, 92, 246, 0.08) 40%,
+                transparent 100%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 24px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 0;
+        }
+
+        .header-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            color: var(--accent-blue);
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: var(--accent-blue);
+            border-radius: 50%;
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #a5b4fc 50%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+        }
+
+        .header p {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        /* Upload Zone */
+        #upload-card {
+            position: relative;
+        }
+
+        #setup-area {
+            padding: 80px 40px;
+            text-align: center;
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(139, 92, 246, 0.4);
+            border-radius: 20px;
+            padding: 60px 40px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(139, 92, 246, 0.03);
+            position: relative;
+        }
+
+        .upload-zone:hover {
+            border-color: rgba(139, 92, 246, 0.8);
+            background: rgba(139, 92, 246, 0.06);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px rgba(139, 92, 246, 0.15);
+        }
+
+        .upload-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+        }
+
+        .upload-zone h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .upload-zone span {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .upload-features {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .feature-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .feature-tag svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        #loader {
+            display: none;
+            margin-top: 24px;
+            padding: 16px 24px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 12px;
+            color: var(--accent-yellow);
+            font-weight: 500;
+        }
+
+        /* Display Area */
+        #display-area {
+            display: none;
+        }
+
+        .video-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 28px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .live-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--accent-red);
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent-red);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--accent-red);
+            animation: live-pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes live-pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 12px var(--accent-red); }
+            50% { opacity: 0.6; box-shadow: 0 0 4px var(--accent-red); }
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .info-item strong {
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        #display-screen {
+            width: 100%;
+            display: block;
+            background: #000;
+            max-height: 70vh;
+            object-fit: contain;
+        }
+
+        /* Stats Grid */
+        .stats-section {
+            padding: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            margin: 0 auto 12px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .stat-icon.total { background: rgba(59, 130, 246, 0.15); }
+        .stat-icon.safe { background: rgba(16, 185, 129, 0.15); }
+        .stat-icon.warning { background: rgba(245, 158, 11, 0.15); }
+        .stat-icon.danger { background: rgba(239, 68, 68, 0.15); }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-green .stat-value { color: var(--accent-green); }
+        .stat-yellow .stat-value { color: var(--accent-yellow); }
+        .stat-red .stat-value { color: var(--accent-red); }
+        .stat-blue .stat-value { color: var(--accent-blue); }
+
+        /* Vehicle List */
+        .vehicle-section {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border-color);
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .vehicle-section::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .vehicle-section::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .vehicle-section::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .vehicle-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .vehicle-header h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .vehicle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .vehicle-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .vehicle-item:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .vehicle-item.high-risk {
+            border-color: rgba(239, 68, 68, 0.4);
+            background: rgba(239, 68, 68, 0.08);
+        }
+
+        .vehicle-item.warning {
+            border-color: rgba(245, 158, 11, 0.4);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .vehicle-id {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .vehicle-score {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .score-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-right: 10px;
+        }
+
+        .score-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .score-fill.green { background: var(--accent-green); }
+        .score-fill.yellow { background: var(--accent-yellow); }
+        .score-fill.red { background: var(--accent-red); }
+
+        .score-value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .vehicle-speed {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        .live-chart-section {
+            border-top: 1px solid var(--border-color);
+            padding: 20px 24px;
+        }
+
+        .live-chart-header {
+            margin-bottom: 16px;
+        }
+
+        .live-chart-header h3 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .live-chart-container {
+            height: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        /* Summary */
+        #summary-box {
+            display: none;
+            margin-top: 32px;
+        }
+
+        .summary-header {
+            padding: 32px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%);
+        }
+
+        .summary-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .summary-header p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: var(--border-color);
+        }
+
+        .summary-stat {
+            padding: 24px;
+            text-align: center;
+            background: var(--bg-secondary);
+        }
+
+        .summary-stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            margin-bottom: 4px;
+        }
+
+        .summary-stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .chart-container {
+            padding: 32px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .chart-container canvas {
+            border-radius: 12px;
+        }
+
+        .summary-footer {
+            padding: 24px;
+            text-align: center;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+            color: white;
+            padding: 14px 36px;
+            border: none;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(139, 92, 246, 0.35);
+        }
+
+        .btn-skip {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-skip:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .slide-in {
+            animation: slideIn 0.4s ease-out forwards;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.8rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .summary-stats { grid-template-columns: 1fr; }
+            #setup-area { padding: 40px 20px; }
+            .upload-zone { padding: 40px 20px; }
+            .vehicle-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-badge">AI Powered Traffic Monitoring</div>
+            <h1>🚨 Traffic Risk Detector</h1>
+            <p>ระบบวิเคราะห์พฤติกรรมเสี่ยงบนท้องถนน ด้วย YOLOv8 + Object Tracking แบบเรียลไทม์</p>
+        </header>
+
+        <div class="card" id="upload-card">
+            <div id="setup-area">
+                <input type="file" id="fileInput" accept="video/*" style="display: none;" onchange="startUpload()">
+                <div class="upload-zone" id="upload-zone" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">🎬</div>
+                    <h3>เลือกวิดีโอเพื่อเริ่มวิเคราะห์</h3>
+                    <span>คลิกหรือวางไฟล์วิดีโอที่นี่ • รองรับ MP4, AVI, MOV</span>
+                    <div class="upload-features">
+                        <span class="feature-tag">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+                            Vehicle Detection
+                        </span>
+                        <span class="feature-tag">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+                            Risk Analysis
+                        </span>
+                        <span class="feature-tag">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+                            Speed Tracking
+                        </span>
+                    </div>
+                </div>
+                <div id="loader">⚙️ กำลังประมวลผล... กรุณารอสักครู่</div>
+            </div>
+        </div>
+
+        <div class="card" id="display-area">
+            <div class="video-header">
+                <div class="live-badge">
+                    <span class="live-dot"></span>
+                    AI กำลังประมวลผล
+                </div>
+                <div class="header-info">
+                    <div class="info-item">
+                        <span>เฟรม</span>
+                        <strong id="frame-counter">0</strong>
+                    </div>
+                    <div class="info-item">
+                        <span>เวลา</span>
+                        <strong id="time-counter">0:00</strong>
+                    </div>
+                    <button class="btn-skip" onclick="skipToEnd()">⏭️ ข้ามไปดูผล</button>
+                </div>
+            </div>
+            <img id="display-screen" src="" alt="AI Processing Frame">
+            
+            <div class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-card stat-blue">
+                        <div class="stat-icon total">🚗</div>
+                        <div class="stat-value" id="stat-total">0</div>
+                        <div class="stat-label">พาหนะทั้งหมด</div>
+                    </div>
+                    <div class="stat-card stat-green">
+                        <div class="stat-icon safe">✅</div>
+                        <div class="stat-value" id="stat-safe">0</div>
+                        <div class="stat-label">ปลอดภัย</div>
+                    </div>
+                    <div class="stat-card stat-yellow">
+                        <div class="stat-icon warning">⚠️</div>
+                        <div class="stat-value" id="stat-warning">0</div>
+                        <div class="stat-label">เฝ้าระวัง</div>
+                    </div>
+                    <div class="stat-card stat-red">
+                        <div class="stat-icon danger">🚨</div>
+                        <div class="stat-value" id="stat-danger">0</div>
+                        <div class="stat-label">เสี่ยงสูง</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="vehicle-section">
+                <div class="vehicle-header">
+                    <h3>📋 รายการพาหนะ</h3>
+                </div>
+                <div class="vehicle-grid" id="vehicle-list">
+                </div>
+            </div>
+
+            <div class="live-chart-section">
+                <div class="live-chart-header">
+                    <h3>📈 กราฟความเสี่ยงแบบเรียลไทม์</h3>
+                </div>
+                <div class="live-chart-container">
+                    <canvas id="liveChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="summary-box">
+            <div class="summary-header">
+                <h2>📊 รายงานผลการวิเคราะห์</h2>
+                <p>สรุปความเสี่ยงจากการตรวจจับทั้งหมด</p>
+            </div>
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="sum-total" style="color: var(--accent-blue);">0</div>
+                    <div class="summary-stat-label">พาหนะทั้งหมด</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="sum-warning" style="color: var(--accent-yellow);">0</div>
+                    <div class="summary-stat-label">เหตุการณ์เฝ้าระวัง</div>
+                </div>
+                <div class="summary-stat">
+                    <div class="summary-stat-value" id="sum-danger" style="color: var(--accent-red);">0</div>
+                    <div class="summary-stat-label">เหตุการณ์เสี่ยงสูง</div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="riskChart"></canvas>
+            </div>
+            <div class="summary-footer">
+                <button class="btn-primary" onclick="location.reload()">🔄 วิเคราะห์ไฟล์ใหม่</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadCard = document.getElementById('upload-card');
+        const displayArea = document.getElementById('display-area');
+        const display = document.getElementById('display-screen');
+        const summary = document.getElementById('summary-box');
+        const loader = document.getElementById('loader');
+        const frameCounter = document.getElementById('frame-counter');
+        const timeCounter = document.getElementById('time-counter');
+        const statTotal = document.getElementById('stat-total');
+        const statSafe = document.getElementById('stat-safe');
+        const statWarning = document.getElementById('stat-warning');
+        const statDanger = document.getElementById('stat-danger');
+        const vehicleList = document.getElementById('vehicle-list');
+
+        let frameCount = 0;
+        let riskData = { labels: [], datasets: [] };
+        let liveChart = null;
+
+        Chart.defaults.color = '#8b8b96';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.06)';
+        Chart.defaults.font.family = 'IBM Plex Sans Thai';
+
+        function initLiveChart() {
+            const ctx = document.getElementById('liveChart').getContext('2d');
+            liveChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 15 } },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: { maxTicksLimit: 10 }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            title: { display: true, text: 'Risk Score' }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        function updateLiveChart(scores, ids) {
+            const timeLabel = frameCount.toString();
+            
+            if (!liveChart.data.labels.includes(timeLabel)) {
+                liveChart.data.labels.push(timeLabel);
+                if (liveChart.data.labels.length > 30) {
+                    liveChart.data.labels.shift();
+                }
+            }
+
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+            
+            ids.forEach((id, i) => {
+                let dataset = liveChart.data.datasets.find(d => d.label === id);
+                if (!dataset) {
+                    dataset = {
+                        label: id,
+                        data: [],
+                        borderColor: colors[i % colors.length],
+                        backgroundColor: colors[i % colors.length] + '20',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointHoverRadius: 5
+                    };
+                    liveChart.data.datasets.push(dataset);
+                }
+                
+                dataset.data.push(scores[i] || 0);
+                if (dataset.data.length > 30) {
+                    dataset.data.shift();
+                }
+            });
+
+            liveChart.data.datasets.forEach((ds, i) => {
+                if (i >= ids.length) {
+                    ds.data.push(null);
+                    if (ds.data.length > 30) ds.data.shift();
+                }
+            });
+
+            liveChart.update('none');
+        }
+
+        let riskChart = new Chart(document.getElementById('riskChart'), {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'คะแนนความเสี่ยง',
+                    data: [],
+                    backgroundColor: [],
+                    borderRadius: 8,
+                    borderSkipped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255,255,255,0.04)' },
+                        ticks: { font: { size: 11 } }
+                    }
+                }
+            }
+        });
+
+        const uploadZone = document.getElementById('upload-zone');
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.style.borderColor = 'rgba(139, 92, 246, 0.9)';
+            uploadZone.style.background = 'rgba(139, 92, 246, 0.08)';
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.style.borderColor = '';
+            uploadZone.style.background = '';
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.style.borderColor = '';
+            uploadZone.style.background = '';
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                document.getElementById('fileInput').files = dt.files;
+                startUpload();
+            }
+        });
+
+        async function startUpload() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            loader.style.display = 'block';
+
+            try {
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    loader.style.display = 'none';
+                    uploadCard.style.display = 'none';
+                    displayArea.style.display = 'block';
+                    displayArea.classList.add('fade-in');
+                    frameCount = 0;
+                    initLiveChart();
+                    runAI();
+                }
+            } catch (e) {
+                alert('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า app.py รันอยู่');
+                loader.style.display = 'none';
+            }
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        async function skipToEnd() {
+            while (true) {
+                try {
+                    const res = await fetch('/get_next_frame');
+                    const data = await res.json();
+                    if (data.finished) break;
+                } catch (e) {
+                    break;
+                }
+            }
+            showSummary();
+        }
+
+        function showSummary() {
+            displayArea.style.display = 'none';
+            summary.style.display = 'block';
+            summary.classList.add('fade-in');
+        }
+
+        function updateVehicleList(ids, scores, speeds) {
+            vehicleList.innerHTML = '';
+            
+            const sortedIndices = scores.map((s, i) => ({ s, i }))
+                .sort((a, b) => b.s - a.s)
+                .map(x => x.i);
+
+            for (const idx of sortedIndices) {
+                const id = ids[idx];
+                const score = scores[idx];
+                const speed = speeds[idx] || 0;
+                
+                const itemClass = score >= 10 ? 'high-risk' : score >= 5 ? 'warning' : '';
+                const fillClass = score >= 10 ? 'red' : score >= 5 ? 'yellow' : 'green';
+                const scorePercent = Math.min(score / 20 * 100, 100);
+                
+                const div = document.createElement('div');
+                div.className = `vehicle-item ${itemClass} slide-in`;
+                div.style.animationDelay = `${idx * 50}ms`;
+                div.innerHTML = `
+                    <div class="vehicle-id">${id}</div>
+                    <div class="vehicle-score">
+                        <div class="score-bar">
+                            <div class="score-fill ${fillClass}" style="width: ${scorePercent}%"></div>
+                        </div>
+                        <span class="score-value" style="color: var(--accent-${score >= 10 ? 'red' : score >= 5 ? 'yellow' : 'green'})">${score.toFixed(1)}</span>
+                    </div>
+                    <div class="vehicle-speed">⚡ ${speed.toFixed(1)} km/h</div>
+                `;
+                vehicleList.appendChild(div);
+            }
+        }
+
+        async function runAI() {
+            try {
+                const res = await fetch('/get_next_frame');
+                const data = await res.json();
+
+                if (data.finished) {
+                    showSummary();
+                    
+                    const scores = data.stats.scores;
+                    document.getElementById('sum-total').textContent = scores.length;
+                    document.getElementById('sum-warning').textContent = scores.filter(s => s >= 2 && s < 5).length;
+                    document.getElementById('sum-danger').textContent = scores.filter(s => s >= 5).length;
+                    return;
+                }
+
+                display.src = 'data:image/jpeg;base64,' + data.image;
+                frameCount++;
+                frameCounter.textContent = frameCount;
+                timeCounter.textContent = formatTime(data.timestamp || 0);
+
+                const scores = data.stats.scores;
+                const speeds = data.stats.speeds || [];
+                const total = scores.length;
+                const safe = scores.filter(s => s < 5).length;
+                const warning = scores.filter(s => s >= 5 && s < 10).length;
+                const danger = scores.filter(s => s >= 10).length;
+
+                statTotal.textContent = total;
+                statSafe.textContent = safe;
+                statWarning.textContent = warning;
+                statDanger.textContent = danger;
+
+                updateVehicleList(data.stats.ids, scores, speeds);
+                updateLiveChart(scores, data.stats.ids);
+
+                riskChart.data.labels = data.stats.ids;
+                riskChart.data.datasets[0].data = scores;
+                riskChart.data.datasets[0].backgroundColor = scores.map(s => 
+                    s >= 5 ? 'rgba(239, 68, 68, 0.7)' : 
+                    s >= 2 ? 'rgba(245, 158, 11, 0.7)' : 
+                    'rgba(16, 185, 129, 0.7)'
+                );
+                riskChart.update('none');
+
+                requestAnimationFrame(runAI);
+            } catch (e) {
+                console.error('Frame error:', e);
+                setTimeout(runAI, 500);
+            }
+        }
+    </script>
+</body>
+
+</html>
