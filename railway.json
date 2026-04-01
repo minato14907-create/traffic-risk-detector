@@ -1,11 +1,14 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "python",
+    "python": "3.11"
   },
   "deploy": {
-    "numInstances": 1,
+    "numReplicas": 1,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyLimit": 5
+    "restartPolicyMaxRetries": 10,
+    "startCommand": "python app.py",
+    "port": 8000
   }
 }
