@@ -1,1027 +1,991 @@
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Traffic Center — ระบบตรวจจับความเสี่ยงจราจร</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg-primary: #0c0c14;
-            --bg-secondary: #12121c;
-            --bg-card: rgba(255, 255, 255, 0.03);
-            --border-color: rgba(255, 255, 255, 0.08);
-            --text-primary: #f1f1f4;
-            --text-secondary: #8b8b96;
-            --accent-blue: #3b82f6;
-            --accent-purple: #8b5cf6;
-            --accent-green: #10b981;
-            --accent-yellow: #f59e0b;
-            --accent-red: #ef4444;
-            --accent-orange: #f97316;
-        }
-
-        body {
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            font-family: 'IBM Plex Sans Thai', -apple-system, sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 400px;
-            background: linear-gradient(180deg, 
-                rgba(59, 130, 246, 0.12) 0%, 
-                rgba(139, 92, 246, 0.08) 40%,
-                transparent 100%);
-            z-index: -1;
-            pointer-events: none;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 32px 24px;
-        }
-
-        /* Header */
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 40px 0;
-        }
-
-        .header-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(59, 130, 246, 0.15);
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            padding: 6px 16px;
-            border-radius: 50px;
-            font-size: 0.75rem;
-            color: var(--accent-blue);
-            font-weight: 600;
-            margin-bottom: 16px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .header-badge::before {
-            content: '';
-            width: 6px;
-            height: 6px;
-            background: var(--accent-blue);
-            border-radius: 50%;
-            animation: pulse-dot 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.8); }
-        }
-
-        .header h1 {
-            font-size: 2.8rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #fff 0%, #a5b4fc 50%, #818cf8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 12px;
-            letter-spacing: -1px;
-        }
-
-        .header p {
-            font-size: 1rem;
-            color: var(--text-secondary);
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        /* Cards */
-        .card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            overflow: hidden;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-        }
-
-        /* Upload Zone */
-        #upload-card {
-            position: relative;
-        }
-
-        #setup-area {
-            padding: 80px 40px;
-            text-align: center;
-        }
-
-        .upload-zone {
-            border: 2px dashed rgba(139, 92, 246, 0.4);
-            border-radius: 20px;
-            padding: 60px 40px;
-            cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            background: rgba(139, 92, 246, 0.03);
-            position: relative;
-        }
-
-        .upload-zone:hover {
-            border-color: rgba(139, 92, 246, 0.8);
-            background: rgba(139, 92, 246, 0.06);
-            transform: translateY(-4px);
-            box-shadow: 0 20px 60px rgba(139, 92, 246, 0.15);
-        }
-
-        .upload-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(59, 130, 246, 0.2));
-            border-radius: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-        }
-
-        .upload-zone h3 {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-
-        .upload-zone span {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        .upload-features {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-top: 24px;
-            flex-wrap: wrap;
-        }
-
-        .feature-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 8px 16px;
-            border-radius: 50px;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .feature-tag svg {
-            width: 14px;
-            height: 14px;
-        }
-
-        #loader {
-            display: none;
-            margin-top: 24px;
-            padding: 16px 24px;
-            background: rgba(245, 158, 11, 0.1);
-            border: 1px solid rgba(245, 158, 11, 0.2);
-            border-radius: 12px;
-            color: var(--accent-yellow);
-            font-weight: 500;
-        }
-
-        /* Display Area */
-        #display-area {
-            display: none;
-        }
-
-        .video-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 20px 28px;
-            border-bottom: 1px solid var(--border-color);
-            background: rgba(0, 0, 0, 0.3);
-        }
-
-        .live-badge {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: var(--accent-red);
-        }
-
-        .live-dot {
-            width: 10px;
-            height: 10px;
-            background: var(--accent-red);
-            border-radius: 50%;
-            box-shadow: 0 0 12px var(--accent-red);
-            animation: live-pulse 1s ease-in-out infinite;
-        }
-
-        @keyframes live-pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 12px var(--accent-red); }
-            50% { opacity: 0.6; box-shadow: 0 0 4px var(--accent-red); }
-        }
-
-        .header-info {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-
-        .info-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .info-item strong {
-            color: var(--text-primary);
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        #display-screen {
-            width: 100%;
-            display: block;
-            background: #000;
-            max-height: 70vh;
-            object-fit: contain;
-        }
-
-        /* Stats Grid */
-        .stats-section {
-            padding: 24px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-        }
-
-        .stat-card {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .stat-icon {
-            width: 44px;
-            height: 44px;
-            margin: 0 auto 12px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-        }
-
-        .stat-icon.total { background: rgba(59, 130, 246, 0.15); }
-        .stat-icon.safe { background: rgba(16, 185, 129, 0.15); }
-        .stat-icon.warning { background: rgba(245, 158, 11, 0.15); }
-        .stat-icon.danger { background: rgba(239, 68, 68, 0.15); }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            font-family: 'JetBrains Mono', monospace;
-            line-height: 1;
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .stat-green .stat-value { color: var(--accent-green); }
-        .stat-yellow .stat-value { color: var(--accent-yellow); }
-        .stat-red .stat-value { color: var(--accent-red); }
-        .stat-blue .stat-value { color: var(--accent-blue); }
-
-        /* Vehicle List */
-        .vehicle-section {
-            padding: 20px 24px;
-            border-top: 1px solid var(--border-color);
-            max-height: 300px;
-            overflow-y: auto;
-        }
-
-        .vehicle-section::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .vehicle-section::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .vehicle-section::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-        }
-
-        .vehicle-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .vehicle-header h3 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .vehicle-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 12px;
-        }
-
-        .vehicle-item {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .vehicle-item:hover {
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .vehicle-item.high-risk {
-            border-color: rgba(239, 68, 68, 0.4);
-            background: rgba(239, 68, 68, 0.08);
-        }
-
-        .vehicle-item.warning {
-            border-color: rgba(245, 158, 11, 0.4);
-            background: rgba(245, 158, 11, 0.05);
-        }
-
-        .vehicle-id {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-bottom: 6px;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .vehicle-score {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .score-bar {
-            flex: 1;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
-            overflow: hidden;
-            margin-right: 10px;
-        }
-
-        .score-fill {
-            height: 100%;
-            border-radius: 2px;
-            transition: width 0.3s ease;
-        }
-
-        .score-fill.green { background: var(--accent-green); }
-        .score-fill.yellow { background: var(--accent-yellow); }
-        .score-fill.red { background: var(--accent-red); }
-
-        .score-value {
-            font-size: 0.85rem;
-            font-weight: 600;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .vehicle-speed {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            margin-top: 6px;
-        }
-
-        .live-chart-section {
-            border-top: 1px solid var(--border-color);
-            padding: 20px 24px;
-        }
-
-        .live-chart-header {
-            margin-bottom: 16px;
-        }
-
-        .live-chart-header h3 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .live-chart-container {
-            height: 200px;
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 16px;
-        }
-
-        /* Summary */
-        #summary-box {
-            display: none;
-            margin-top: 32px;
-        }
-
-        .summary-header {
-            padding: 32px;
-            text-align: center;
-            border-bottom: 1px solid var(--border-color);
-            background: linear-gradient(180deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%);
-        }
-
-        .summary-header h2 {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-        }
-
-        .summary-header p {
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-        }
-
-        .summary-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            background: var(--border-color);
-        }
-
-        .summary-stat {
-            padding: 24px;
-            text-align: center;
-            background: var(--bg-secondary);
-        }
-
-        .summary-stat-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            font-family: 'JetBrains Mono', monospace;
-            margin-bottom: 4px;
-        }
-
-        .summary-stat-label {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .chart-container {
-            padding: 32px;
-            background: rgba(0, 0, 0, 0.2);
-        }
-
-        .chart-container canvas {
-            border-radius: 12px;
-        }
-
-        .summary-footer {
-            padding: 24px;
-            text-align: center;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
-            color: white;
-            padding: 14px 36px;
-            border: none;
-            border-radius: 14px;
-            font-weight: 600;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: inherit;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(139, 92, 246, 0.35);
-        }
-
-        .btn-skip {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-primary);
-            padding: 8px 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 0.8rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: inherit;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn-skip:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateX(-20px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        .slide-in {
-            animation: slideIn 0.4s ease-out forwards;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .header h1 { font-size: 1.8rem; }
-            .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .summary-stats { grid-template-columns: 1fr; }
-            #setup-area { padding: 40px 20px; }
-            .upload-zone { padding: 40px 20px; }
-            .vehicle-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Traffic Center</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0c0c14;--bg2:#12121c;--card:rgba(255,255,255,0.03);
+  --border:rgba(255,255,255,0.08);--text:#f1f1f4;--muted:#8b8b96;
+  --blue:#3b82f6;--purple:#8b5cf6;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--orange:#f97316;
+}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans Thai',-apple-system,sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:400px;
+  background:linear-gradient(180deg,rgba(59,130,246,.12) 0%,rgba(139,92,246,.08) 40%,transparent 100%);
+  z-index:-1;pointer-events:none}
+.wrap{max-width:1280px;margin:0 auto;padding:24px}
+
+/* Header */
+.hdr{text-align:center;padding:32px 0 28px}
+.badge{display:inline-flex;align-items:center;gap:8px;background:rgba(59,130,246,.15);
+  border:1px solid rgba(59,130,246,.3);padding:5px 14px;border-radius:50px;
+  font-size:.72rem;color:var(--blue);font-weight:600;margin-bottom:14px;
+  text-transform:uppercase;letter-spacing:1px}
+.badge::before{content:'';width:6px;height:6px;background:var(--blue);border-radius:50%;
+  animation:pdot 1.5s ease-in-out infinite}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+.hdr h1{font-size:2.4rem;font-weight:700;
+  background:linear-gradient(135deg,#fff 0%,#a5b4fc 50%,#818cf8 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:8px;letter-spacing:-1px}
+.hdr p{font-size:.9rem;color:var(--muted)}
+
+/* Card */
+.card{background:var(--card);border:1px solid var(--border);border-radius:20px;overflow:hidden;backdrop-filter:blur(20px)}
+
+/* Upload */
+#upload-card{margin-bottom:20px}
+#setup-area{padding:60px 40px;text-align:center}
+.upload-zone{border:2px dashed rgba(139,92,246,.4);border-radius:16px;padding:50px 40px;
+  cursor:pointer;transition:all .3s ease;background:rgba(139,92,246,.03)}
+.upload-zone:hover{border-color:rgba(139,92,246,.8);background:rgba(139,92,246,.06);
+  transform:translateY(-3px);box-shadow:0 16px 50px rgba(139,92,246,.15)}
+.upload-icon{width:70px;height:70px;margin:0 auto 16px;
+  background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(59,130,246,.2));
+  border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:2.2rem}
+.upload-zone h3{font-size:1.2rem;font-weight:600;margin-bottom:6px}
+.upload-zone span{font-size:.82rem;color:var(--muted)}
+.ftags{display:flex;justify-content:center;gap:16px;margin-top:18px;flex-wrap:wrap}
+.ftag{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);
+  padding:6px 14px;border-radius:50px;font-size:.75rem;color:var(--muted)}
+#existing-section{margin-top:24px;display:none}
+.section-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.file-btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.file-btn{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:12px;padding:10px 16px;cursor:pointer;color:var(--text);
+  font-family:inherit;font-size:.8rem;transition:all .2s;text-align:left;max-width:200px}
+.file-btn:hover,.file-btn.active{border-color:rgba(139,92,246,.7);background:rgba(139,92,246,.12)}
+.file-btn .fn{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-btn .fs{font-size:.68rem;color:var(--muted);margin-top:2px}
+#loader{display:none;margin-top:20px;padding:14px 20px;background:rgba(245,158,11,.1);
+  border:1px solid rgba(245,158,11,.2);border-radius:10px;color:var(--yellow);font-weight:500}
+#countdown{font-size:.75rem;color:var(--yellow);font-family:'JetBrains Mono',monospace}
+
+/* Toolbar */
+.toolbar{display:flex;align-items:center;gap:10px;padding:14px 20px;
+  border-bottom:1px solid var(--border);background:rgba(0,0,0,.3);flex-wrap:wrap}
+.live-dot-wrap{display:flex;align-items:center;gap:8px;font-weight:600;font-size:.82rem;color:var(--red);margin-right:auto}
+.ldot{width:9px;height:9px;background:var(--red);border-radius:50%;
+  box-shadow:0 0 10px var(--red);animation:lp 1s ease-in-out infinite}
+@keyframes lp{0%,100%{opacity:1;box-shadow:0 0 10px var(--red)}50%{opacity:.5;box-shadow:0 0 3px var(--red)}}
+.info-item{display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--muted)}
+.info-item strong{color:var(--text);font-family:'JetBrains Mono',monospace}
+.btn{padding:7px 14px;border-radius:9px;border:1px solid var(--border);
+  background:rgba(255,255,255,.07);color:var(--text);font-family:inherit;
+  font-size:.78rem;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+.btn:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.2)}
+.btn.active{background:rgba(59,130,246,.2);border-color:rgba(59,130,246,.5);color:var(--blue)}
+.btn.danger{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.4);color:var(--red)}
+.btn.success{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.4);color:var(--green)}
+select.sel{padding:7px 12px;border-radius:9px;border:1px solid var(--border);
+  background:rgba(255,255,255,.07);color:var(--text);font-family:inherit;font-size:.78rem;cursor:pointer}
+select.sel option{background:#1a1a2e}
+
+/* Main layout */
+.main-grid{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-top:16px}
+@media(max-width:900px){.main-grid{grid-template-columns:1fr}}
+
+/* Video panel */
+.video-wrap{position:relative}
+#canvas-overlay{position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;z-index:10;display:none}
+#display-screen{width:100%;display:block;background:#000;max-height:65vh;object-fit:contain}
+
+/* Side panel */
+.side-panel{display:flex;flex-direction:column;gap:12px}
+.panel-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden}
+.panel-title{padding:12px 16px;font-size:.78rem;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px}
+
+/* Stats */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.stat-box{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:12px;
+  padding:14px;text-align:center}
+.stat-val{font-size:1.8rem;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
+.stat-lbl{font-size:.68rem;color:var(--muted);text-transform:uppercase;margin-top:3px}
+.c-blue .stat-val{color:var(--blue)}.c-green .stat-val{color:var(--green)}
+.c-yellow .stat-val{color:var(--yellow)}.c-red .stat-val{color:var(--red)}
+
+/* Vehicle list */
+.vlist{padding:10px 12px;max-height:220px;overflow-y:auto}
+.vlist::-webkit-scrollbar{width:4px}
+.vlist::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+.vitem{background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:10px;
+  padding:10px 12px;margin-bottom:7px;transition:all .2s}
+.vitem.risk-hi{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.07)}
+.vitem.risk-md{border-color:rgba(245,158,11,.35);background:rgba(245,158,11,.05)}
+.vid{font-size:.7rem;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:5px}
+.vbar-wrap{display:flex;align-items:center;gap:8px}
+.vbar{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.vfill{height:100%;border-radius:2px;transition:width .3s}
+.vfill.g{background:var(--green)}.vfill.y{background:var(--yellow)}.vfill.r{background:var(--red)}
+.vscore{font-size:.82rem;font-weight:600;font-family:'JetBrains Mono',monospace;min-width:28px;text-align:right}
+.vspeed{font-size:.68rem;color:var(--muted);margin-top:4px}
+
+/* Line counts */
+.lcounts{padding:10px 12px}
+.lcount-item{display:flex;justify-content:space-between;align-items:center;
+  padding:8px 10px;background:rgba(0,0,0,.3);border:1px solid var(--border);
+  border-radius:8px;margin-bottom:6px;font-size:.8rem}
+.lcount-val{font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--yellow)}
+
+/* Near miss */
+.nm-list{padding:10px 12px;max-height:140px;overflow-y:auto}
+.nm-item{padding:7px 10px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);
+  border-radius:8px;margin-bottom:6px;font-size:.75rem}
+.nm-item .nm-ids{font-family:'JetBrains Mono',monospace;color:var(--red);font-weight:600}
+.nm-item .nm-info{color:var(--muted);margin-top:2px}
+
+/* Chart */
+.chart-wrap{padding:12px;height:180px}
+
+/* Bottom panels */
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:700px){.bottom-grid{grid-template-columns:1fr}}
+.heatmap-img{width:100%;border-radius:10px;display:block}
+
+/* ROI / Line editor */
+.editor-info{padding:10px 14px;font-size:.78rem;color:var(--muted);border-bottom:1px solid var(--border)}
+.editor-btns{display:flex;gap:8px;padding:10px 14px;flex-wrap:wrap}
+
+/* Summary */
+#summary-box{display:none;margin-top:20px}
+.sum-hdr{padding:28px;text-align:center;border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(245,158,11,.05) 0%,transparent 100%)}
+.sum-hdr h2{font-size:1.4rem;font-weight:700;margin-bottom:6px}
+.sum-hdr p{font-size:.85rem;color:var(--muted)}
+.sum-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border)}
+.sum-stat{padding:20px;text-align:center;background:var(--bg2)}
+.sum-val{font-size:2rem;font-weight:700;font-family:'JetBrains Mono',monospace;margin-bottom:3px}
+.sum-lbl{font-size:.75rem;color:var(--muted)}
+.sum-chart{padding:24px;background:rgba(0,0,0,.2)}
+.sum-footer{padding:20px;text-align:center;border-top:1px solid var(--border);display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-primary{background:linear-gradient(135deg,var(--purple),var(--blue));color:#fff;
+  padding:12px 28px;border:none;border-radius:12px;font-weight:600;font-size:.9rem;
+  cursor:pointer;transition:all .3s;font-family:inherit}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(139,92,246,.35)}
+.btn-export{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:var(--green);
+  padding:12px 24px;border-radius:12px;font-weight:600;font-size:.9rem;cursor:pointer;
+  transition:all .3s;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn-export:hover{background:rgba(16,185,129,.25)}
+
+@keyframes fadeIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .4s ease-out forwards}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal{background:#1a1a2e;border:1px solid var(--border);border-radius:20px;padding:28px;min-width:340px;max-width:420px;width:90%}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:18px}
+.form-row{margin-bottom:14px}
+.form-row label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:5px}
+.form-row input{width:100%;padding:9px 12px;background:rgba(255,255,255,.07);border:1px solid var(--border);
+  border-radius:9px;color:var(--text);font-family:inherit;font-size:.85rem}
+.form-row input:focus{outline:none;border-color:var(--blue)}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+</style>
 </head>
-
 <body>
-    <div class="container">
-        <header class="header">
-            <div class="header-badge">AI Powered Traffic Monitoring</div>
-            <h1>🚨 Traffic Risk Detector</h1>
-            <p>ระบบวิเคราะห์พฤติกรรมเสี่ยงบนท้องถนน ด้วย YOLOv8 + Object Tracking แบบเรียลไทม์</p>
-        </header>
+<div class="wrap">
 
-        <div class="card" id="upload-card">
-            <div id="setup-area">
-                <input type="file" id="fileInput" accept="video/*" style="display: none;" onchange="startUpload()">
-                <div class="upload-zone" id="upload-zone" onclick="document.getElementById('fileInput').click()">
-                    <div class="upload-icon">🎬</div>
-                    <h3>เลือกวิดีโอเพื่อเริ่มวิเคราะห์</h3>
-                    <span>คลิกหรือวางไฟล์วิดีโอที่นี่ • รองรับ MP4, AVI, MOV</span>
-                    <div class="upload-features">
-                        <span class="feature-tag">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
-                            Vehicle Detection
-                        </span>
-                        <span class="feature-tag">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
-                            Risk Analysis
-                        </span>
-                        <span class="feature-tag">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
-                            Speed Tracking
-                        </span>
-                    </div>
-                </div>
-                <div id="loader">⚙️ กำลังประมวลผล... กรุณารอสักครู่</div>
-            </div>
+  <!-- Header -->
+  <header class="hdr">
+    <div class="badge">AI Powered Traffic Monitoring</div>
+    <h1>🚨 Traffic Risk Detector</h1>
+    <p>ตรวจจับยานพาหนะ · วิเคราะห์ความเสี่ยง · นับรถ · Near-Miss · Heatmap · Export CSV</p>
+  </header>
+
+  <!-- Upload Card -->
+  <div class="card" id="upload-card">
+    <div id="setup-area">
+      <input type="file" id="fileInput" accept="video/*" style="display:none" onchange="startUpload()">
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">🎬</div>
+        <h3>เลือกวิดีโอเพื่อเริ่มวิเคราะห์</h3>
+        <span>คลิกหรือวางไฟล์วิดีโอที่นี่ · MP4, AVI, MOV</span>
+        <div class="ftags">
+          <span class="ftag">✅ Vehicle Detection</span>
+          <span class="ftag">⚠️ Risk Analysis</span>
+          <span class="ftag">📏 Line Counter</span>
+          <span class="ftag">🔥 Heatmap</span>
+          <span class="ftag">💥 Near-Miss</span>
         </div>
+      </div>
+      <div id="existing-section">
+        <div class="section-label">📂 วิดีโอที่มีอยู่แล้ว <span id="countdown"></span></div>
+        <div class="file-btns" id="file-btns"></div>
+      </div>
+      <div id="loader">⚙️ กำลังโหลด...</div>
+    </div>
+  </div>
 
-        <div class="card" id="display-area">
-            <div class="video-header">
-                <div class="live-badge">
-                    <span class="live-dot"></span>
-                    AI กำลังประมวลผล
-                </div>
-                <div class="header-info">
-                    <div class="info-item">
-                        <span>เฟรม</span>
-                        <strong id="frame-counter">0</strong>
-                    </div>
-                    <div class="info-item">
-                        <span>เวลา</span>
-                        <strong id="time-counter">0:00</strong>
-                    </div>
-                    <button class="btn-skip" onclick="skipToEnd()">⏭️ ข้ามไปดูผล</button>
-                </div>
-            </div>
-            <img id="display-screen" src="" alt="AI Processing Frame">
-            
-            <div class="stats-section">
-                <div class="stats-grid">
-                    <div class="stat-card stat-blue">
-                        <div class="stat-icon total">🚗</div>
-                        <div class="stat-value" id="stat-total">0</div>
-                        <div class="stat-label">พาหนะทั้งหมด</div>
-                    </div>
-                    <div class="stat-card stat-green">
-                        <div class="stat-icon safe">✅</div>
-                        <div class="stat-value" id="stat-safe">0</div>
-                        <div class="stat-label">ปลอดภัย</div>
-                    </div>
-                    <div class="stat-card stat-yellow">
-                        <div class="stat-icon warning">⚠️</div>
-                        <div class="stat-value" id="stat-warning">0</div>
-                        <div class="stat-label">เฝ้าระวัง</div>
-                    </div>
-                    <div class="stat-card stat-red">
-                        <div class="stat-icon danger">🚨</div>
-                        <div class="stat-value" id="stat-danger">0</div>
-                        <div class="stat-label">เสี่ยงสูง</div>
-                    </div>
-                </div>
-            </div>
+  <!-- Display Area -->
+  <div id="display-area" style="display:none">
 
-            <div class="vehicle-section">
-                <div class="vehicle-header">
-                    <h3>📋 รายการพาหนะ</h3>
-                </div>
-                <div class="vehicle-grid" id="vehicle-list">
-                </div>
-            </div>
-
-            <div class="live-chart-section">
-                <div class="live-chart-header">
-                    <h3>📈 กราฟความเสี่ยงแบบเรียลไทม์</h3>
-                </div>
-                <div class="live-chart-container">
-                    <canvas id="liveChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="card" id="summary-box">
-            <div class="summary-header">
-                <h2>📊 รายงานผลการวิเคราะห์</h2>
-                <p>สรุปความเสี่ยงจากการตรวจจับทั้งหมด</p>
-            </div>
-            <div class="summary-stats">
-                <div class="summary-stat">
-                    <div class="summary-stat-value" id="sum-total" style="color: var(--accent-blue);">0</div>
-                    <div class="summary-stat-label">พาหนะทั้งหมด</div>
-                </div>
-                <div class="summary-stat">
-                    <div class="summary-stat-value" id="sum-warning" style="color: var(--accent-yellow);">0</div>
-                    <div class="summary-stat-label">เหตุการณ์เฝ้าระวัง</div>
-                </div>
-                <div class="summary-stat">
-                    <div class="summary-stat-value" id="sum-danger" style="color: var(--accent-red);">0</div>
-                    <div class="summary-stat-label">เหตุการณ์เสี่ยงสูง</div>
-                </div>
-            </div>
-            <div class="chart-container">
-                <canvas id="riskChart"></canvas>
-            </div>
-            <div class="summary-footer">
-                <button class="btn-primary" onclick="location.reload()">🔄 วิเคราะห์ไฟล์ใหม่</button>
-            </div>
-        </div>
+    <!-- Toolbar -->
+    <div class="card" style="margin-bottom:12px">
+      <div class="toolbar">
+        <div class="live-dot-wrap"><span class="ldot"></span> AI กำลังประมวลผล</div>
+        <div class="info-item"><span>เฟรม</span><strong id="fc">0</strong></div>
+        <div class="info-item"><span>เวลา</span><strong id="tc">0:00</strong></div>
+        <!-- Model selector -->
+        <select class="sel" id="model-sel" onchange="changeModel(this.value)" title="เลือก Model">
+          <option value="yolov8n.pt">YOLOv8n (เร็ว)</option>
+          <option value="yolov8s.pt" selected>YOLOv8s (แนะนำ)</option>
+          <option value="yolov8m.pt">YOLOv8m (แม่น)</option>
+          <option value="yolov8l.pt">YOLOv8l (แม่นสุด)</option>
+        </select>
+        <button class="btn" id="btn-pause" onclick="togglePause()">⏸ หยุด</button>
+        <button class="btn" id="btn-roi" onclick="toggleROIMode()">🔲 ROI</button>
+        <button class="btn" id="btn-line" onclick="toggleLineMode()">📏 เส้นนับ</button>
+        <button class="btn" id="btn-heatmap" onclick="showHeatmap()">🔥 Heatmap</button>
+        <button class="btn" onclick="showSpeedConfig()">⚡ ความเร็ว</button>
+        <button class="btn" id="btn-wrongway" onclick="showWrongWayConfig()">↩ Wrong-Way</button>
+        <button class="btn" onclick="skipToEnd()">⏭ ข้ามผล</button>
+        <a class="btn success" href="/export_csv" download>📥 CSV</a>
+        <a class="btn success" href="/export_pdf" download>📄 PDF</a>
+      </div>
     </div>
 
-    <script>
-        const uploadCard = document.getElementById('upload-card');
-        const displayArea = document.getElementById('display-area');
-        const display = document.getElementById('display-screen');
-        const summary = document.getElementById('summary-box');
-        const loader = document.getElementById('loader');
-        const frameCounter = document.getElementById('frame-counter');
-        const timeCounter = document.getElementById('time-counter');
-        const statTotal = document.getElementById('stat-total');
-        const statSafe = document.getElementById('stat-safe');
-        const statWarning = document.getElementById('stat-warning');
-        const statDanger = document.getElementById('stat-danger');
-        const vehicleList = document.getElementById('vehicle-list');
+    <!-- Progress Bar -->
+    <div style="margin-bottom:10px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:.75rem;color:var(--muted);white-space:nowrap">ความคืบหน้า</span>
+      <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+        <div id="progress-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--purple));border-radius:3px;transition:width .5s ease"></div>
+      </div>
+      <span id="progress-pct" style="font-size:.75rem;color:var(--text);font-family:'JetBrains Mono',monospace;min-width:36px;text-align:right">0%</span>
+    </div>
 
-        let frameCount = 0;
-        let riskData = { labels: [], datasets: [] };
-        let liveChart = null;
+    <!-- Main Grid -->
+    <div class="main-grid">
+      <!-- Video -->
+      <div class="card video-wrap" id="video-card">
+        <canvas id="canvas-overlay"></canvas>
+        <img id="display-screen" src="" alt="frame">
+        <div class="editor-info" id="editor-info" style="display:none"></div>
+        <div class="editor-btns" id="editor-btns" style="display:none"></div>
+      </div>
 
-        Chart.defaults.color = '#8b8b96';
-        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.06)';
-        Chart.defaults.font.family = 'IBM Plex Sans Thai';
+      <!-- Side Panel -->
+      <div class="side-panel">
 
-        function initLiveChart() {
-            const ctx = document.getElementById('liveChart').getContext('2d');
-            liveChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: []
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: true, position: 'top', labels: { boxWidth: 12, padding: 15 } },
-                        tooltip: { mode: 'index', intersect: false }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(255,255,255,0.03)' },
-                            ticks: { maxTicksLimit: 10 }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            title: { display: true, text: 'Risk Score' }
-                        }
-                    },
-                    interaction: {
-                        mode: 'nearest',
-                        axis: 'x',
-                        intersect: false
-                    }
-                }
-            });
-        }
+        <!-- Stats -->
+        <div class="panel-card">
+          <div class="panel-title">📊 สถิติ</div>
+          <div class="stats-grid">
+            <div class="stat-box c-blue"><div class="stat-val" id="s-total">0</div><div class="stat-lbl">พาหนะ</div></div>
+            <div class="stat-box c-green"><div class="stat-val" id="s-safe">0</div><div class="stat-lbl">ปลอดภัย</div></div>
+            <div class="stat-box c-yellow"><div class="stat-val" id="s-warn">0</div><div class="stat-lbl">เฝ้าระวัง</div></div>
+            <div class="stat-box c-red"><div class="stat-val" id="s-danger">0</div><div class="stat-lbl">เสี่ยงสูง</div></div>
+          </div>
+        </div>
 
-        function updateLiveChart(scores, ids) {
-            const timeLabel = frameCount.toString();
-            
-            if (!liveChart.data.labels.includes(timeLabel)) {
-                liveChart.data.labels.push(timeLabel);
-                if (liveChart.data.labels.length > 30) {
-                    liveChart.data.labels.shift();
-                }
-            }
+        <!-- Near Miss -->
+        <div class="panel-card">
+          <div class="panel-title">💥 Near-Miss <span id="nm-badge" style="margin-left:auto;background:rgba(239,68,68,.2);color:var(--red);padding:2px 8px;border-radius:20px;font-size:.7rem">0</span></div>
+          <div class="nm-list" id="nm-list"><div style="padding:8px;font-size:.78rem;color:var(--muted)">ยังไม่พบ near-miss</div></div>
+        </div>
 
-            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
-            
-            ids.forEach((id, i) => {
-                let dataset = liveChart.data.datasets.find(d => d.label === id);
-                if (!dataset) {
-                    dataset = {
-                        label: id,
-                        data: [],
-                        borderColor: colors[i % colors.length],
-                        backgroundColor: colors[i % colors.length] + '20',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3,
-                        pointRadius: 3,
-                        pointHoverRadius: 5
-                    };
-                    liveChart.data.datasets.push(dataset);
-                }
-                
-                dataset.data.push(scores[i] || 0);
-                if (dataset.data.length > 30) {
-                    dataset.data.shift();
-                }
-            });
+        <!-- Wrong Way -->
+        <div class="panel-card" id="ww-card" style="display:none">
+          <div class="panel-title">↩ Wrong-Way <span id="ww-badge" style="margin-left:auto;background:rgba(249,115,22,.2);color:var(--orange);padding:2px 8px;border-radius:20px;font-size:.7rem">0</span></div>
+          <div class="nm-list" id="ww-list"></div>
+        </div>
 
-            liveChart.data.datasets.forEach((ds, i) => {
-                if (i >= ids.length) {
-                    ds.data.push(null);
-                    if (ds.data.length > 30) ds.data.shift();
-                }
-            });
+        <!-- Line Counts -->
+        <div class="panel-card" id="lcount-card" style="display:none">
+          <div class="panel-title">📏 นับรถผ่านเส้น</div>
+          <div class="lcounts" id="lcounts"></div>
+        </div>
 
-            liveChart.update('none');
-        }
+        <!-- Vehicle List -->
+        <div class="panel-card">
+          <div class="panel-title">🚗 รายการพาหนะ</div>
+          <div class="vlist" id="vlist"></div>
+        </div>
 
-        let riskChart = new Chart(document.getElementById('riskChart'), {
-            type: 'bar',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'คะแนนความเสี่ยง',
-                    data: [],
-                    backgroundColor: [],
-                    borderRadius: 8,
-                    borderSkipped: false,
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { font: { size: 11 } }
-                    },
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(255,255,255,0.04)' },
-                        ticks: { font: { size: 11 } }
-                    }
-                }
-            }
-        });
+        <!-- Snapshots -->
+        <div class="panel-card" id="snap-card" style="display:none">
+          <div class="panel-title">📸 Auto Snapshots <span id="snap-badge" style="margin-left:auto;background:rgba(59,130,246,.2);color:var(--blue);padding:2px 8px;border-radius:20px;font-size:.7rem">0</span></div>
+          <div class="nm-list" id="snap-list"></div>
+        </div>
 
-        const uploadZone = document.getElementById('upload-zone');
-        uploadZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadZone.style.borderColor = 'rgba(139, 92, 246, 0.9)';
-            uploadZone.style.background = 'rgba(139, 92, 246, 0.08)';
-        });
-        uploadZone.addEventListener('dragleave', () => {
-            uploadZone.style.borderColor = '';
-            uploadZone.style.background = '';
-        });
-        uploadZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadZone.style.borderColor = '';
-            uploadZone.style.background = '';
-            const file = e.dataTransfer.files[0];
-            if (file) {
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                document.getElementById('fileInput').files = dt.files;
-                startUpload();
-            }
-        });
+      </div>
+    </div>
 
-        async function startUpload() {
-            const file = document.getElementById('fileInput').files[0];
-            if (!file) return;
+    <!-- Chart + Heatmap -->
+    <div class="bottom-grid">
+      <div class="card">
+        <div class="panel-title" style="padding:12px 16px;border-bottom:1px solid var(--border)">📈 Risk Score แบบ Realtime</div>
+        <div class="chart-wrap"><canvas id="liveChart"></canvas></div>
+      </div>
+      <div class="card" id="heatmap-card" style="display:none">
+        <div class="panel-title" style="padding:12px 16px;border-bottom:1px solid var(--border)">🔥 Heatmap ความหนาแน่น</div>
+        <div style="padding:12px"><img id="heatmap-img" class="heatmap-img" src="" alt="heatmap"></div>
+      </div>
+    </div>
 
-            const formData = new FormData();
-            formData.append('file', file);
+  </div>
 
-            loader.style.display = 'block';
+  <!-- Summary -->
+  <div class="card" id="summary-box">
+    <div class="sum-hdr">
+      <h2>📊 รายงานผลการวิเคราะห์</h2>
+      <p>สรุปความเสี่ยงจากการตรวจจับทั้งหมด</p>
+    </div>
+    <div class="sum-stats">
+      <div class="sum-stat"><div class="sum-val" id="sum-total" style="color:var(--blue)">0</div><div class="sum-lbl">พาหนะทั้งหมด</div></div>
+      <div class="sum-stat"><div class="sum-val" id="sum-warn" style="color:var(--yellow)">0</div><div class="sum-lbl">เฝ้าระวัง</div></div>
+      <div class="sum-stat"><div class="sum-val" id="sum-danger" style="color:var(--red)">0</div><div class="sum-lbl">เสี่ยงสูง</div></div>
+      <div class="sum-stat"><div class="sum-val" id="sum-nm" style="color:var(--orange)">0</div><div class="sum-lbl">Near-Miss</div></div>
+    </div>
+    <div class="sum-chart"><canvas id="riskChart"></canvas></div>
+    <div class="sum-footer">
+      <button class="btn-primary" onclick="location.reload()">🔄 วิเคราะห์ใหม่</button>
+      <a class="btn-export" href="/export_csv" download>📥 Export CSV</a>
+      <a class="btn-export" href="/export_pdf" download style="background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.4);color:var(--blue)">📄 Export PDF</a>
+    </div>
+  </div>
 
-            try {
-                const res = await fetch('/upload', { method: 'POST', body: formData });
-                const data = await res.json();
+</div><!-- /wrap -->
 
-                if (data.status === 'success') {
-                    loader.style.display = 'none';
-                    uploadCard.style.display = 'none';
-                    displayArea.style.display = 'block';
-                    displayArea.classList.add('fade-in');
-                    frameCount = 0;
-                    initLiveChart();
-                    runAI();
-                }
-            } catch (e) {
-                alert('❌ เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจสอบว่า app.py รันอยู่');
-                loader.style.display = 'none';
-            }
-        }
+<!-- Speed Config Modal -->
+<div class="modal-overlay" id="speed-modal" style="display:none" onclick="if(event.target===this)closeSpeedModal()">
+  <div class="modal">
+    <h3>⚡ ตั้งค่าความเร็ว</h3>
+    <div class="form-row">
+      <label>ความเร็วสูงสุด (แจ้งเตือนเมื่อเกิน)</label>
+      <input type="number" id="spd-threshold" placeholder="เช่น 80 (0 = ปิด)" min="0" step="1">
+    </div>
+    <div class="form-row">
+      <label>Scale: 1 pixel = กี่เมตร (0 = ไม่ calibrate)</label>
+      <input type="number" id="spd-ppm" placeholder="เช่น 0.05" min="0" step="0.001">
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:-6px">
+      ถ้า calibrate แล้ว ความเร็วจะแสดงเป็น km/h จริง · ถ้าไม่ calibrate จะแสดงเป็นค่าประมาณ
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeSpeedModal()">ยกเลิก</button>
+      <button class="btn success" onclick="saveSpeedConfig()">✅ บันทึก</button>
+    </div>
+  </div>
+</div>
 
-        function formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
+<!-- Wrong-Way Modal -->
+<div class="modal-overlay" id="ww-modal" style="display:none" onclick="if(event.target===this)closeWWModal()">
+  <div class="modal">
+    <h3>↩ ตั้งค่า Wrong-Way Detection</h3>
+    <div style="font-size:.8rem;color:var(--muted);margin-bottom:14px;line-height:1.6">
+      กำหนดมุมทิศทางที่ <b style="color:var(--green)">อนุญาต</b> ให้รถวิ่ง<br>
+      รถที่วิ่งนอกช่วงมุมนี้จะถูกแจ้งเตือนว่าสวนทาง<br>
+      <span style="color:var(--muted);font-size:.72rem">0°=ขวา · 90°=ลง · 180°=ซ้าย · 270°=ขึ้น</span>
+    </div>
+    <div class="form-row">
+      <label>มุมต่ำสุดที่อนุญาต (degrees)</label>
+      <input type="number" id="ww-min" placeholder="เช่น 120" min="0" max="360" step="1" value="120">
+    </div>
+    <div class="form-row">
+      <label>มุมสูงสุดที่อนุญาต (degrees)</label>
+      <input type="number" id="ww-max" placeholder="เช่น 240" min="0" max="360" step="1" value="240">
+    </div>
+    <div class="form-row" style="display:flex;align-items:center;gap:10px">
+      <input type="checkbox" id="ww-enabled" style="width:auto">
+      <label style="margin:0;color:var(--text)">เปิดใช้งาน Wrong-Way Detection</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeWWModal()">ยกเลิก</button>
+      <button class="btn success" onclick="saveWWConfig()">✅ บันทึก</button>
+    </div>
+  </div>
+</div>
 
-        async function skipToEnd() {
-            while (true) {
-                try {
-                    const res = await fetch('/get_next_frame');
-                    const data = await res.json();
-                    if (data.finished) break;
-                } catch (e) {
-                    break;
-                }
-            }
-            showSummary();
-        }
+<script>
+// ---- DOM refs ----
+const uploadCard  = document.getElementById('upload-card');
+const displayArea = document.getElementById('display-area');
+const summaryBox  = document.getElementById('summary-box');
+const loader      = document.getElementById('loader');
+const display     = document.getElementById('display-screen');
+const fcEl        = document.getElementById('fc');
+const tcEl        = document.getElementById('tc');
+const canvas      = document.getElementById('canvas-overlay');
+const ctx2d       = canvas.getContext('2d');
 
-        function showSummary() {
-            displayArea.style.display = 'none';
-            summary.style.display = 'block';
-            summary.classList.add('fade-in');
-        }
+// ---- State ----
+let frameCount = 0;
+let isPaused   = false;
+let liveChart  = null;
+let autoTimer  = null;
+let roiMode    = false;
+let lineMode   = false;
+let roiPoints  = [];
+let linePoints = [];   // temp points for current line being drawn
+let savedLines = [];   // [{id,x1,y1,x2,y2,name,count}]
+let lineIdSeq  = 0;
+let heatmapVisible = false;
+let heatmapTimer   = null;
 
-        function updateVehicleList(ids, scores, speeds) {
-            vehicleList.innerHTML = '';
-            
-            const sortedIndices = scores.map((s, i) => ({ s, i }))
-                .sort((a, b) => b.s - a.s)
-                .map(x => x.i);
+Chart.defaults.color = '#8b8b96';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = 'IBM Plex Sans Thai';
 
-            for (const idx of sortedIndices) {
-                const id = ids[idx];
-                const score = scores[idx];
-                const speed = speeds[idx] || 0;
-                
-                const itemClass = score >= 10 ? 'high-risk' : score >= 5 ? 'warning' : '';
-                const fillClass = score >= 10 ? 'red' : score >= 5 ? 'yellow' : 'green';
-                const scorePercent = Math.min(score / 20 * 100, 100);
-                
-                const div = document.createElement('div');
-                div.className = `vehicle-item ${itemClass} slide-in`;
-                div.style.animationDelay = `${idx * 50}ms`;
-                div.innerHTML = `
-                    <div class="vehicle-id">${id}</div>
-                    <div class="vehicle-score">
-                        <div class="score-bar">
-                            <div class="score-fill ${fillClass}" style="width: ${scorePercent}%"></div>
-                        </div>
-                        <span class="score-value" style="color: var(--accent-${score >= 10 ? 'red' : score >= 5 ? 'yellow' : 'green'})">${score.toFixed(1)}</span>
-                    </div>
-                    <div class="vehicle-speed">⚡ ${speed.toFixed(1)} km/h</div>
-                `;
-                vehicleList.appendChild(div);
-            }
-        }
+// ---- Init ----
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const r = await fetch('/list_uploads');
+    const d = await r.json();
+    if (d.files && d.files.length > 0) {
+      renderFileList(d.files);
+      startAutoLoad(d.files[0].name);
+    }
+  } catch(e) {}
+});
 
-        async function runAI() {
-            try {
-                const res = await fetch('/get_next_frame');
-                const data = await res.json();
+function fmtSize(b){ return b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(1)+' MB' }
+function fmtTime(s){ const m=Math.floor(s/60),ss=Math.floor(s%60); return `${m}:${ss.toString().padStart(2,'0')}` }
 
-                if (data.finished) {
-                    showSummary();
-                    
-                    const scores = data.stats.scores;
-                    document.getElementById('sum-total').textContent = scores.length;
-                    document.getElementById('sum-warning').textContent = scores.filter(s => s >= 2 && s < 5).length;
-                    document.getElementById('sum-danger').textContent = scores.filter(s => s >= 5).length;
-                    return;
-                }
+function renderFileList(files){
+  const sec = document.getElementById('existing-section');
+  const btns = document.getElementById('file-btns');
+  sec.style.display = 'block';
+  btns.innerHTML = '';
+  files.forEach((f,i) => {
+    const b = document.createElement('button');
+    b.className = 'file-btn' + (i===0?' active':'');
+    b.innerHTML = `<div class="fn">🎬 ${f.name}</div><div class="fs">${fmtSize(f.size)}</div>`;
+    b.onclick = () => loadExisting(f.name);
+    btns.appendChild(b);
+  });
+}
 
-                display.src = 'data:image/jpeg;base64,' + data.image;
-                frameCount++;
-                frameCounter.textContent = frameCount;
-                timeCounter.textContent = formatTime(data.timestamp || 0);
+function startAutoLoad(name){
+  let n = 3;
+  const el = document.getElementById('countdown');
+  el.textContent = `⏱ ${n}s`;
+  autoTimer = setInterval(() => {
+    n--;
+    if(n <= 0){ clearInterval(autoTimer); autoTimer=null; el.textContent=''; loadExisting(name); }
+    else el.textContent = `⏱ ${n}s`;
+  }, 1000);
+}
 
-                const scores = data.stats.scores;
-                const speeds = data.stats.speeds || [];
-                const total = scores.length;
-                const safe = scores.filter(s => s < 5).length;
-                const warning = scores.filter(s => s >= 5 && s < 10).length;
-                const danger = scores.filter(s => s >= 10).length;
+async function loadExisting(name){
+  if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+  document.getElementById('countdown').textContent = '';
+  loader.style.display = 'block';
+  const r = await fetch('/load_existing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:name})});
+  const d = await r.json();
+  loader.style.display = 'none';
+  if(d.status === 'success') startDisplay();
+  else alert('❌ '+d.message);
+}
 
-                statTotal.textContent = total;
-                statSafe.textContent = safe;
-                statWarning.textContent = warning;
-                statDanger.textContent = danger;
+async function startUpload(){
+  if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+  const file = document.getElementById('fileInput').files[0];
+  if(!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  loader.style.display = 'block';
+  try {
+    const r = await fetch('/upload',{method:'POST',body:fd});
+    const d = await r.json();
+    loader.style.display = 'none';
+    if(d.status === 'success') startDisplay();
+    else alert('❌ '+d.message);
+  } catch(e){ loader.style.display='none'; alert('❌ เชื่อมต่อไม่ได้'); }
+}
 
-                updateVehicleList(data.stats.ids, scores, speeds);
-                updateLiveChart(scores, data.stats.ids);
+function startDisplay(){
+  uploadCard.style.display = 'none';
+  displayArea.style.display = 'block';
+  displayArea.classList.add('fade-in');
+  frameCount = 0; isPaused = false;
+  initLiveChart();
+  runAI();
+}
 
-                riskChart.data.labels = data.stats.ids;
-                riskChart.data.datasets[0].data = scores;
-                riskChart.data.datasets[0].backgroundColor = scores.map(s => 
-                    s >= 5 ? 'rgba(239, 68, 68, 0.7)' : 
-                    s >= 2 ? 'rgba(245, 158, 11, 0.7)' : 
-                    'rgba(16, 185, 129, 0.7)'
-                );
-                riskChart.update('none');
+// Drag & drop
+const uz = document.getElementById('upload-zone');
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.style.borderColor='rgba(139,92,246,.9)'; });
+uz.addEventListener('dragleave', () => { uz.style.borderColor=''; });
+uz.addEventListener('drop', e => {
+  e.preventDefault(); uz.style.borderColor='';
+  const f = e.dataTransfer.files[0];
+  if(f){ const dt=new DataTransfer(); dt.items.add(f); document.getElementById('fileInput').files=dt.files; startUpload(); }
+});
 
-                requestAnimationFrame(runAI);
-            } catch (e) {
-                console.error('Frame error:', e);
-                setTimeout(runAI, 500);
-            }
-        }
-    </script>
+// ---- Model ----
+async function changeModel(name){
+  const r = await fetch('/set_model',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:name})});
+  const d = await r.json();
+  if(d.status !== 'success') alert('เปลี่ยน model ไม่ได้: '+d.message);
+}
+
+// ---- Pause ----
+async function togglePause(){
+  const r = await fetch('/pause',{method:'POST'});
+  const d = await r.json();
+  isPaused = d.paused;
+  const btn = document.getElementById('btn-pause');
+  btn.textContent = isPaused ? '▶ ต่อ' : '⏸ หยุด';
+  btn.className = isPaused ? 'btn active' : 'btn';
+  if(!isPaused) runAI();
+}
+
+// ---- ROI ----
+function toggleROIMode(){
+  lineMode = false; updateLineBtn();
+  roiMode = !roiMode;
+  const btn = document.getElementById('btn-roi');
+  btn.className = roiMode ? 'btn active' : 'btn';
+  if(roiMode){
+    roiPoints = [];
+    showCanvas();
+    showEditorInfo('🔲 ROI: คลิกวางจุด · ดับเบิลคลิกเพื่อปิด polygon', [
+      {label:'✅ บันทึก ROI', fn: saveROI},
+      {label:'🗑 ล้าง ROI', fn: clearROI}
+    ]);
+  } else {
+    hideCanvas();
+    hideEditorInfo();
+  }
+}
+
+async function saveROI(){
+  if(roiPoints.length < 3){ alert('ต้องมีอย่างน้อย 3 จุด'); return; }
+  await fetch('/set_roi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({polygon:roiPoints})});
+  roiMode = false;
+  document.getElementById('btn-roi').className = 'btn active';
+  hideCanvas(); hideEditorInfo();
+}
+
+async function clearROI(){
+  roiPoints = [];
+  await fetch('/set_roi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({polygon:[]})});
+  document.getElementById('btn-roi').className = 'btn';
+  roiMode = false; hideCanvas(); hideEditorInfo();
+}
+
+// ---- Line Counter ----
+function toggleLineMode(){
+  roiMode = false; document.getElementById('btn-roi').className = 'btn';
+  lineMode = !lineMode;
+  updateLineBtn();
+  if(lineMode){
+    linePoints = [];
+    showCanvas();
+    showEditorInfo('📏 เส้นนับ: คลิกจุดที่ 1 แล้วคลิกจุดที่ 2 เพื่อวางเส้น', [
+      {label:'🗑 ล้างเส้นทั้งหมด', fn: clearLines}
+    ]);
+  } else {
+    hideCanvas(); hideEditorInfo();
+  }
+}
+
+function updateLineBtn(){
+  const btn = document.getElementById('btn-line');
+  btn.className = lineMode ? 'btn active' : 'btn';
+}
+
+async function clearLines(){
+  savedLines = []; linePoints = [];
+  await fetch('/set_lines',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lines:[]})});
+  document.getElementById('lcount-card').style.display = 'none';
+  lineMode = false; updateLineBtn(); hideCanvas(); hideEditorInfo();
+}
+
+// ---- Canvas overlay ----
+function showCanvas(){
+  const img = display;
+  canvas.style.display = 'block';
+  syncCanvas();
+}
+function hideCanvas(){ canvas.style.display = 'none'; }
+
+function syncCanvas(){
+  const rect = display.getBoundingClientRect();
+  canvas.width  = display.offsetWidth;
+  canvas.height = display.offsetHeight;
+  canvas.style.width  = display.offsetWidth + 'px';
+  canvas.style.height = display.offsetHeight + 'px';
+}
+
+function getNormPos(e){
+  const rect = canvas.getBoundingClientRect();
+  return { x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height };
+}
+
+canvas.addEventListener('click', async (e) => {
+  const pos = getNormPos(e);
+  if(roiMode){
+    roiPoints.push([pos.x, pos.y]);
+    drawROIPreview();
+  } else if(lineMode){
+    linePoints.push(pos);
+    if(linePoints.length === 2){
+      const name = prompt('ชื่อเส้นนับ (เช่น ช่องทาง 1):', `Line ${lineIdSeq+1}`) || `Line ${lineIdSeq+1}`;
+      const line = {id: lineIdSeq++, x1:linePoints[0].x, y1:linePoints[0].y,
+                    x2:linePoints[1].x, y2:linePoints[1].y, name, count:0};
+      savedLines.push(line);
+      linePoints = [];
+      await fetch('/set_lines',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({lines: savedLines})});
+      document.getElementById('lcount-card').style.display = 'block';
+      drawLinesPreview();
+    } else {
+      drawLinesPreview();
+    }
+  }
+});
+
+canvas.addEventListener('dblclick', (e) => {
+  if(roiMode && roiPoints.length >= 3) saveROI();
+});
+
+function drawROIPreview(){
+  syncCanvas();
+  ctx2d.clearRect(0,0,canvas.width,canvas.height);
+  if(roiPoints.length < 1) return;
+  ctx2d.beginPath();
+  ctx2d.moveTo(roiPoints[0][0]*canvas.width, roiPoints[0][1]*canvas.height);
+  for(let i=1;i<roiPoints.length;i++)
+    ctx2d.lineTo(roiPoints[i][0]*canvas.width, roiPoints[i][1]*canvas.height);
+  ctx2d.closePath();
+  ctx2d.fillStyle = 'rgba(59,130,246,0.15)';
+  ctx2d.fill();
+  ctx2d.strokeStyle = '#3b82f6';
+  ctx2d.lineWidth = 2;
+  ctx2d.stroke();
+  roiPoints.forEach(p => {
+    ctx2d.beginPath();
+    ctx2d.arc(p[0]*canvas.width, p[1]*canvas.height, 5, 0, Math.PI*2);
+    ctx2d.fillStyle = '#3b82f6'; ctx2d.fill();
+  });
+}
+
+function drawLinesPreview(){
+  syncCanvas();
+  ctx2d.clearRect(0,0,canvas.width,canvas.height);
+  savedLines.forEach(l => {
+    ctx2d.beginPath();
+    ctx2d.moveTo(l.x1*canvas.width, l.y1*canvas.height);
+    ctx2d.lineTo(l.x2*canvas.width, l.y2*canvas.height);
+    ctx2d.strokeStyle = '#f59e0b'; ctx2d.lineWidth = 2; ctx2d.stroke();
+    const mx=(l.x1+l.x2)/2*canvas.width, my=(l.y1+l.y2)/2*canvas.height;
+    ctx2d.fillStyle='rgba(0,0,0,0.6)'; ctx2d.fillRect(mx-2,my-14,ctx2d.measureText(l.name).width+8,18);
+    ctx2d.fillStyle='#f59e0b'; ctx2d.font='12px IBM Plex Sans Thai'; ctx2d.fillText(l.name,mx+2,my);
+  });
+  if(linePoints.length === 1){
+    ctx2d.beginPath();
+    ctx2d.arc(linePoints[0].x*canvas.width, linePoints[0].y*canvas.height, 5, 0, Math.PI*2);
+    ctx2d.fillStyle='#f59e0b'; ctx2d.fill();
+  }
+}
+
+function showEditorInfo(text, btns){
+  const info = document.getElementById('editor-info');
+  const bwrap = document.getElementById('editor-btns');
+  info.textContent = text; info.style.display = 'block';
+  bwrap.innerHTML = ''; bwrap.style.display = 'flex';
+  btns.forEach(b => {
+    const el = document.createElement('button');
+    el.className = 'btn'; el.textContent = b.label;
+    el.onclick = b.fn; bwrap.appendChild(el);
+  });
+}
+function hideEditorInfo(){
+  document.getElementById('editor-info').style.display='none';
+  document.getElementById('editor-btns').style.display='none';
+}
+
+// ---- Heatmap ----
+async function showHeatmap(){
+  heatmapVisible = !heatmapVisible;
+  const card = document.getElementById('heatmap-card');
+  const btn  = document.getElementById('btn-heatmap');
+  card.style.display = heatmapVisible ? 'block' : 'none';
+  btn.className = heatmapVisible ? 'btn active' : 'btn';
+  if(heatmapVisible){
+    await refreshHeatmap();
+    heatmapTimer = setInterval(refreshHeatmap, 2000);
+  } else {
+    clearInterval(heatmapTimer);
+  }
+}
+
+async function refreshHeatmap(){
+  const r = await fetch('/get_heatmap');
+  const d = await r.json();
+  if(d.image) document.getElementById('heatmap-img').src = 'data:image/jpeg;base64,'+d.image;
+}
+
+// ---- Live Chart ----
+function initLiveChart(){
+  if(liveChart){ liveChart.destroy(); liveChart=null; }
+  const ctx = document.getElementById('liveChart').getContext('2d');
+  liveChart = new Chart(ctx, {
+    type:'line',
+    data:{labels:[],datasets:[]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,padding:12}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.03)'},ticks:{maxTicksLimit:8}},
+        y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.05)'},title:{display:true,text:'Risk Score'}}
+      },
+      interaction:{mode:'nearest',axis:'x',intersect:false},
+      animation:{duration:0}
+    }
+  });
+}
+
+const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16'];
+
+function updateLiveChart(ids, scores){
+  const label = frameCount.toString();
+  liveChart.data.labels.push(label);
+  if(liveChart.data.labels.length > 40) liveChart.data.labels.shift();
+
+  ids.forEach((id,i) => {
+    let ds = liveChart.data.datasets.find(d => d.label === id);
+    if(!ds){
+      ds = {label:id, data:[], borderColor:COLORS[i%COLORS.length],
+            backgroundColor:COLORS[i%COLORS.length]+'20', borderWidth:1.5,
+            fill:false, tension:.3, pointRadius:2};
+      liveChart.data.datasets.push(ds);
+    }
+    ds.data.push(scores[i]||0);
+    if(ds.data.length > 40) ds.data.shift();
+  });
+  liveChart.data.datasets.forEach((ds,i) => {
+    if(i >= ids.length){ ds.data.push(null); if(ds.data.length>40) ds.data.shift(); }
+  });
+  liveChart.update('none');
+}
+
+// ---- Wrong-Way Config ----
+function showWrongWayConfig(){
+  document.getElementById('ww-modal').style.display = 'flex';
+}
+function closeWWModal(){
+  document.getElementById('ww-modal').style.display = 'none';
+}
+async function saveWWConfig(){
+  const enabled   = document.getElementById('ww-enabled').checked;
+  const min_angle = parseFloat(document.getElementById('ww-min').value) || 0;
+  const max_angle = parseFloat(document.getElementById('ww-max').value) || 360;
+  await fetch('/set_wrong_way',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({enabled, min_angle, max_angle})});
+  const btn = document.getElementById('btn-wrongway');
+  btn.className = enabled ? 'btn active' : 'btn';
+  closeWWModal();
+}
+
+
+function showSpeedConfig(){
+  document.getElementById('speed-modal').style.display = 'flex';
+}
+function closeSpeedModal(){
+  document.getElementById('speed-modal').style.display = 'none';
+}
+async function saveSpeedConfig(){
+  const threshold = parseFloat(document.getElementById('spd-threshold').value) || 0;
+  const ppm       = parseFloat(document.getElementById('spd-ppm').value) || 0;
+  await fetch('/set_speed_config',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({threshold, pixel_per_meter: ppm})});
+  closeSpeedModal();
+}
+
+// ---- Progress ----
+function updateProgress(pct){
+  document.getElementById('progress-bar').style.width = Math.min(pct,100) + '%';
+  document.getElementById('progress-pct').textContent = Math.min(pct,100).toFixed(0) + '%';
+}
+
+// ---- Snapshots ----
+function updateSnapshots(stats){
+  const count = stats.snapshot_count || 0;
+  const recent = stats.recent_snapshots || [];
+  const card = document.getElementById('snap-card');
+  const badge = document.getElementById('snap-badge');
+  const list  = document.getElementById('snap-list');
+  if(count > 0){
+    card.style.display = 'block';
+    badge.textContent = count;
+    list.innerHTML = '';
+    recent.slice().reverse().forEach(s => {
+      const d = document.createElement('div');
+      d.className = 'nm-item';
+      const icon = s.reason==='near_miss'?'💥':s.reason==='speed_alert'?'⚡':'🚨';
+      d.innerHTML = `<div class="nm-ids">${icon} ${s.reason.replace('_',' ')} · ID ${s.track_id}</div>
+        <div class="nm-info" style="display:flex;align-items:center;justify-content:space-between">
+          <span>เวลา ${s.time}s</span>
+          <a href="/get_snapshot/${s.filename}" target="_blank" style="color:var(--blue);font-size:.7rem">ดูภาพ ↗</a>
+        </div>`;
+      list.appendChild(d);
+    });
+  }
+}
+
+
+function updateStats(stats){
+  const scores = stats.scores || [];
+  const total  = scores.length;
+  const safe   = scores.filter(s=>s<5).length;
+  const warn   = scores.filter(s=>s>=5&&s<10).length;
+  const danger = scores.filter(s=>s>=10).length;
+  document.getElementById('s-total').textContent  = total;
+  document.getElementById('s-safe').textContent   = safe;
+  document.getElementById('s-warn').textContent   = warn;
+  document.getElementById('s-danger').textContent = danger;
+
+  const speedAlerts = stats.speed_alerts || [];
+  const speedUnit   = stats.speed_unit || '';
+
+  // Vehicle list
+  const vlist = document.getElementById('vlist');
+  vlist.innerHTML = '';
+  const sorted = scores.map((s,i)=>({s,i})).sort((a,b)=>b.s-a.s);
+  sorted.forEach(({s,i}) => {
+    const id    = stats.ids[i];
+    const idNum = parseInt(id.replace('ID ',''));
+    const speed = (stats.speeds||[])[i]||0;
+    const cls   = (stats.classes||[])[i]||'';
+    const isSpeedAlert = speedAlerts.includes(idNum);
+    const cls2  = s>=10?'risk-hi':s>=5||isSpeedAlert?'risk-md':'';
+    const fc    = s>=10?'r':s>=5?'y':'g';
+    const pct   = Math.min(s/15*100,100);
+    const sc    = s>=10?'var(--red)':s>=5?'var(--yellow)':'var(--green)';
+    const div = document.createElement('div');
+    div.className = `vitem ${cls2}`;
+    div.innerHTML = `<div class="vid">${cls} ${id}${isSpeedAlert?' <span style="color:var(--orange)">⚡ เร็วเกิน</span>':''}</div>
+      <div class="vbar-wrap">
+        <div class="vbar"><div class="vfill ${fc}" style="width:${pct}%"></div></div>
+        <span class="vscore" style="color:${sc}">${s.toFixed(1)}</span>
+      </div>
+      <div class="vspeed">⚡ ${speed.toFixed(1)} ${speedUnit}</div>`;
+    vlist.appendChild(div);
+  });
+
+  // Line counts
+  const lcs = stats.line_counts || [];
+  if(lcs.length > 0){
+    document.getElementById('lcount-card').style.display = 'block';
+    const lcEl = document.getElementById('lcounts');
+    lcEl.innerHTML = '';
+    lcs.forEach(l => {
+      const d = document.createElement('div');
+      d.className = 'lcount-item';
+      d.innerHTML = `<span>${l.name}</span><span class="lcount-val">${l.count} คัน</span>`;
+      lcEl.appendChild(d);
+    });
+  }
+
+  // Near miss
+  const nmTotal = stats.near_miss_total || 0;
+  document.getElementById('nm-badge').textContent = nmTotal;
+  const nmList = document.getElementById('nm-list');
+  const recent = stats.recent_near_miss || [];
+  if(recent.length > 0){
+    nmList.innerHTML = '';
+    recent.slice().reverse().forEach(nm => {
+      const d = document.createElement('div');
+      d.className = 'nm-item';
+      d.innerHTML = `<div class="nm-ids">⚠ ID ${nm.id1} ↔ ID ${nm.id2}</div>
+        <div class="nm-info">เวลา ${nm.time}s · ระยะ ${nm.dist}px</div>`;
+      nmList.appendChild(d);
+    });
+  }
+
+  // Wrong-way
+  const wwTotal = stats.wrong_way_total || 0;
+  if(wwTotal > 0){
+    document.getElementById('ww-card').style.display = 'block';
+    document.getElementById('ww-badge').textContent = wwTotal;
+  }
+}
+
+// ---- Main loop ----
+async function runAI(){
+  if(isPaused) return;
+  try {
+    const r = await fetch('/get_next_frame');
+    const d = await r.json();
+
+    if(d.paused){ setTimeout(runAI, 200); return; }
+
+    if(d.finished){
+      updateProgress(100);
+      showSummary(d.stats);
+      return;
+    }
+
+    display.src = 'data:image/jpeg;base64,' + d.image;
+    frameCount++;
+    fcEl.textContent = frameCount;
+    tcEl.textContent = fmtTime(d.timestamp || 0);
+
+    if(d.stats){
+      updateStats(d.stats);
+      updateLiveChart(d.stats.ids, d.stats.scores);
+      updateSnapshots(d.stats);
+    }
+    if(d.progress !== undefined) updateProgress(d.progress);
+
+    requestAnimationFrame(runAI);
+  } catch(e){
+    console.error(e);
+    setTimeout(runAI, 500);
+  }
+}
+
+async function skipToEnd(){
+  while(true){
+    try{
+      const r = await fetch('/get_next_frame');
+      const d = await r.json();
+      if(d.finished){ showSummary(d.stats); return; }
+    } catch(e){ break; }
+  }
+}
+
+function showSummary(stats){
+  displayArea.style.display = 'none';
+  summaryBox.style.display  = 'block';
+  summaryBox.classList.add('fade-in');
+  if(!stats) return;
+  const scores = stats.scores || [];
+  document.getElementById('sum-total').textContent  = scores.length;
+  document.getElementById('sum-warn').textContent   = scores.filter(s=>s>=5&&s<10).length;
+  document.getElementById('sum-danger').textContent = scores.filter(s=>s>=10).length;
+  document.getElementById('sum-nm').textContent     = stats.near_miss_total || 0;
+
+  new Chart(document.getElementById('riskChart'), {
+    type:'bar',
+    data:{
+      labels: stats.ids,
+      datasets:[{
+        label:'Risk Score',
+        data: scores,
+        backgroundColor: scores.map(s=>s>=10?'rgba(239,68,68,.7)':s>=5?'rgba(245,158,11,.7)':'rgba(16,185,129,.7)'),
+        borderRadius:6, borderSkipped:false
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false}},
+        y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.04)'}}
+      }
+    }
+  });
+}
+</script>
 </body>
-
 </html>

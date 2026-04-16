@@ -7,3 +7,17 @@ services:
     envVars:
       - key: PORT
         value: 8000
+      - key: FRAME_STRIDE
+        value: 3
+      - key: INFER_SCALE
+        value: 0.75
+      - key: IMG_SIZE
+        value: 640
+      - key: MAX_DET
+        value: 200
+      - key: CONF_THRES
+        value: 0.4
+      - key: IOU_THRES
+        value: 0.5
+      - key: JPEG_QUALITY
+        value: 60
